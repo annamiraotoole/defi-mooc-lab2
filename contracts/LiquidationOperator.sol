@@ -135,9 +135,32 @@ interface IUniswapV2Pair {
 contract LiquidationOperator is IUniswapV2Callee {
     uint8 public constant health_factor_decimals = 18;
 
-    // TODO: define constants used in the contract including ERC-20 tokens, Uniswap Pairs, Aave lending pools, etc. */
-    //    *** Your code here ***
-    // END TODO
+    // define constants used in the contract including ERC-20 tokens, Uniswap Pairs, Aave lending pools, etc. */
+    address target_address = 0x59CE4a2AC5bC3f5F225439B2993b86B42f6d3e9F; // loan of USDT collateralized with WBTC
+    address loaner_address = 0xa61e59fac455eed933405ecdde9928982b478ce7;
+    address me = address(this);
+
+    ILendingPool lending_pool = ILendingPool(0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9);
+
+    address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    
+    address USDT_interface = IERC20(USDT);
+    address WBTC_interface = IERC20(WBTC);
+    address WETH_interface = IWETH(WETH);
+
+    IUniswapV2Factory uni_factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+    IUniswapV2Factory sushi_factory = IUniswapV2Factory(0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac);
+    IUniswapV2Pair weth_usdt_uniswap = IUniswapV2Pair(uni_factory.getPair(WETH, USDT));
+    IUniswapV2Pair weth_wbtc_sushiswap = IUniswapV2Pair(sushi_factory.getPair(WETH, WBTC));
+
+    uint256 totalCollateralETH;
+    uint256 totalDebtETH;
+    uint256 availableBorrowsETH;
+    uint256 currentLiquidationThreshold;
+    uint256 ltv;
+    uint256 healthFactor;
 
     // some helper function, it is totally fine if you can finish the lab without using these function
     // https://github.com/Uniswap/v2-periphery/blob/master/contracts/libraries/UniswapV2Library.sol
@@ -183,29 +206,61 @@ contract LiquidationOperator is IUniswapV2Callee {
         // END TODO
     }
 
-    // TODO: add a `receive` function so that you can withdraw your WETH
-    //   *** Your code here ***
-    // END TODO
+    // add a `receive` function so that you can withdraw your WETH
+    receive() external payable {}
 
     // required by the testing script, entry for your liquidation call
     function operate() external {
-        // TODO: implement your liquidation logic
+        // implement your liquidation logic
 
         // 0. security checks and initializing variables
         //    *** Your code here ***
 
         // 1. get the target user account data & make sure it is liquidatable
-        //    *** Your code here ***
 
+        // totalCollateralETH is equivalent to WBTC borrowed
+        // totalDebtETH is equivalent to USDT owed by loan
+
+        (totalCollateralETH, totalDebtETH, availableBorrowsETH, currentLiquidationThreshold, ltv, healthFactor) = lending_pool.getUserAccountData(target_address);        
+        assert (healthFactor < 1e18);
+
+  
         // 2. call flash swap to liquidate the target user
         // based on https://etherscan.io/tx/0xac7df37a43fab1b130318bbb761861b8357650db2e2c6493b73d6da3d9581077
         // we know that the target user borrowed USDT with WBTC as collateral
-        // we should borrow USDT, liquidate the target user and get the WBTC, then swap WBTC to repay uniswap
+        // so we should borrow USDT using Uniswap, 
+
+        uint256 usdt_amount_in_eth = amountIn(total_collateral_ETH, ETH, USDT);
+        WETH.approve(weth_usdt_uniswap, usdt_amount_in_eth);
+        bool success = WETH.transfer(weth_usdt_uniswap, usdt_amount_in_eth);
+        weth_usdt_uniswap.swap(0, usdt_amount_in_eth, me, "not null for flash swap");
+
+        // then liquidate the target user on Aave and get the WBTC collateral back
+
+        uint256 balance_in_usdt = USDT_interface.balanceOf(me);
+        USDT.approve(lending_pool, balance_in_usdt);
+        success = USDT.transfer(lending_pool, balance_in_usdt);
+        lending_pool.liquidationCall(USDT, WBTC, target_address, balance_in_usdt, false);
+        
+
+        // then swap WBTC for WETH to repay uniswap
+        uint256 balance_in_wbtc = WBTC_interface.balanceOf(me);
+        WBTC.approve(weth_wbtc_sushiswap, balance_in_wbtc);
+        success = WBTC.transfer(weth_wbtc_sushiswap, balance_in_wbtc);
+        weth_wbtc_sushiswap.swap(0, balance_in_wbtc, me, "");
+
+        
         // (please feel free to develop other workflows as long as they liquidate the target user successfully)
         //    *** Your code here ***
 
+        
         // 3. Convert the profit into ETH and send back to sender
+        //    convert WETH to ETH
         //    *** Your code here ***
+
+        uint256 weth_balance = WETH_interface.balanceOf(me);
+        WETH_interface.withdraw(weth_balance);
+        msg.sender.call{value: weth_balance}("");
 
         // END TODO
     }
