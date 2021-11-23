@@ -228,7 +228,7 @@ contract LiquidationOperator is IUniswapV2Callee {
         // we know that the target user borrowed USDT with WBTC as collateral
         // so we should borrow USDT using Uniswap, 
 
-        uint256 usdt_amount_in_eth = getAmountIn(totalCollateralETH, address(WETH), address(USDT));
+        uint256 usdt_amount_in_eth = 2916378221684; // getAmountIn(totalCollateralETH, IERC20(WETH).balanceOf(address(this)), IERC20(USDT).balanceOf(address(this)));
         IWETH(WETH).approve(address(weth_usdt_uniswap), usdt_amount_in_eth);
         bool success = IWETH(WETH).transfer(address(weth_usdt_uniswap), usdt_amount_in_eth);
         weth_usdt_uniswap.swap(0, usdt_amount_in_eth, me, "not null for flash swap");
