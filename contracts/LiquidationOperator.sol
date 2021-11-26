@@ -239,11 +239,6 @@ contract LiquidationOperator is IUniswapV2Callee {
         // we know that the target user borrowed USDT with WBTC as collateral
         // so we should borrow USDT using Uniswap
 
-        // uint256 totalCollateralETH;
-        // uint256 totalDebtETH;
-        // uint256 availableBorrowsETH;
-        // uint256 currentLiquidationThreshold;
-        // uint256 ltv;
         uint256 healthFactor;
 
         (, , , , , healthFactor) = lending_pool.getUserAccountData(target_address);
@@ -254,6 +249,18 @@ contract LiquidationOperator is IUniswapV2Callee {
         console.log("called flash swap");
 
         uint256 balance_in_wbtc = IERC20(WBTC).balanceOf(me);
+
+        // 2. call flash swap to liquidate the target user VIA uniswapV2Call
+        // based on https://etherscan.io/tx/0xac7df37a43fab1b130318bbb761861b8357650db2e2c6493b73d6da3d9581077
+        
+        // weth_usdt_uniswap.uniswapV2Call(me, 0, usdt_amount_in_eth, "not null for flash swap");
+        
+        // (please feel free to develop other workflows as long as they liquidate the target user successfully)
+        //    *** Your code here ***
+        
+        // 3. Convert the profit into ETH and send back to sender
+        //    convert WETH to ETH
+        //    *** Your code here ***
 
         IERC20(WBTC).approve(address(uniswap_router), (2**256)-1); // just approve max  
         address[] memory pair = new address[](2);
@@ -266,34 +273,6 @@ contract LiquidationOperator is IUniswapV2Callee {
         payable(msg.sender).transfer(weth_balance);
         msg.sender.call{value: weth_balance}("");
 
-        // uint256 usdt_amount_in_eth = 2916378221684; // getAmountIn(totalCollateralETH, IERC20(WETH).balanceOf(address(this)), IERC20(USDT).balanceOf(address(this)));
-        // console.log("Amount to borrow in USDT is %s tokens", usdt_amount_in_eth);
-        // IWETH(WETH).approve(address(weth_usdt_uniswap), usdt_amount_in_eth);
-        // console.log("approved usdt_amount_in_eth");
-        // IWETH(WETH).transfer(address(weth_usdt_uniswap), usdt_amount_in_eth);
-        // // console.log("transfer call for usdt_amount_in_eth");
-        // weth_usdt_uniswap.swap(0, usdt_amount_in_eth, me, "not null for flash swap");
-        // console.log("called flash swap");
-
-
-        // 2. call flash swap to liquidate the target user VIA uniswapV2Call
-        // based on https://etherscan.io/tx/0xac7df37a43fab1b130318bbb761861b8357650db2e2c6493b73d6da3d9581077
-        
-        // weth_usdt_uniswap.uniswapV2Call(me, 0, usdt_amount_in_eth, "not null for flash swap");
-        
-        // (please feel free to develop other workflows as long as they liquidate the target user successfully)
-        //    *** Your code here ***
-
-        
-        // 3. Convert the profit into ETH and send back to sender
-        //    convert WETH to ETH
-        //    *** Your code here ***
-
-        // uint256 weth_balance = IWETH(WETH).balanceOf(me);
-        // IWETH(WETH).withdraw(weth_balance);
-        // msg.sender.call{value: weth_balance}("");
-
-        // END TODO
     }
 
     // required by the swap
@@ -323,14 +302,6 @@ contract LiquidationOperator is IUniswapV2Callee {
 
         uint256 balance_in_wbtc = IERC20(WBTC).balanceOf(sender);
         console.log("Balance in WBTC is %s tokens", balance_in_wbtc);
-
-        // uint256 balance_in_usdt = IERC20(USDT).balanceOf(sender);
-        // console.log("Balance in USDT is now %s tokens", balance_in_usdt);
-        // IERC20(USDT).approve(provider.getLendingPoolCore(), balance_in_usdt);
-        // console.log("approved balance_in_usdt");
-        // // require(IERC20(USDT).transfer(provider.getLendingPoolCore(), balance_in_usdt), "transfer error");
-        // console.log("doing liquidation call");
-        // lending_pool.liquidationCall(USDT, WBTC, target_address, balance_in_usdt, false);
         
         // // 2.2 swap WBTC for other things or repay directly
         // //    *** Your code here ***
@@ -349,16 +320,5 @@ contract LiquidationOperator is IUniswapV2Callee {
         console.log("Routing for exact swap");
         uniswap_router.swapTokensForExactTokens(amountIn, (2**256)-1, pair, msg.sender, block_number);
 
-        // uint256 balance_in_wbtc = IERC20(WBTC).balanceOf(sender);
-        // console.log("Balance in WBTC is %s tokens", balance_in_usdt);
-        // IERC20(WBTC).approve(address(weth_wbtc_sushiswap), balance_in_wbtc);
-        // require(IERC20(WBTC).transfer(address(weth_wbtc_sushiswap), balance_in_wbtc), "transfer error");
-        // console.log("calling sushiswap to repay loan");
-        // weth_wbtc_sushiswap.swap(0, balance_in_wbtc, sender, "");
-
-        
-        // END TODO /////////////////////////////
-
-        
     }
 }
